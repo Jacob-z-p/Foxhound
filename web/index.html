@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Foxhound 交互演练台</title>
+  </head>
+  <body>
+    <div id="app">
+      <header class="topbar">
+        <div class="brand">
+          <strong>Foxhound 演练台</strong>
+          <span>手动测向 / 清除</span>
+        </div>
+        <div class="controls">
+          <label class="field">问题
+            <select id="problem">
+              <option value="3">3 · 全向源</option>
+              <option value="4">4 · 全向+定向</option>
+            </select>
+          </label>
+          <label class="field">种子
+            <input id="seed" type="number" inputmode="numeric" min="1" step="1" />
+          </label>
+          <button id="new-case" type="button">新开一局</button>
+          <label class="toggle"><input id="show-truth" type="checkbox" checked /> 显示真值</label>
+          <label class="toggle"><input id="show-region" type="checkbox" checked /> 显示交会区</label>
+        </div>
+        <div class="kpis">
+          <div class="kpi"><b id="kpi-time">0.000 s</b><span>虚拟时间</span></div>
+          <div class="kpi"><b id="kpi-clear">0 / 0</b><span>已清除</span></div>
+          <div class="kpi"><b id="kpi-avg">—</b><span>平均清除时间</span></div>
+          <div class="kpi"><b id="kpi-df">CH 1</b><span>测向机频道</span></div>
+        </div>
+      </header>
+      <main class="workspace">
+        <section class="map-wrap" aria-label="目标区域地图">
+          <canvas id="map" tabindex="0"></canvas>
+          <div class="hint">
+            单击地图选定测点 · 滚轮缩放 · 拖动画布平移 · M 测向 · C 清除 · 双击频道瞄准真值（演练）
+          </div>
+        </section>
+        <aside class="side">
+          <section class="card">
+            <h2>操作频道 <span id="op-channel">1</span></h2>
+            <div id="channels" class="channels" role="group" aria-label="频道 1 到 20"></div>
+          </section>
+          <section class="card">
+            <h2>动作</h2>
+            <div class="actions">
+              <button id="btn-measure" class="primary" type="button">测向 /measure</button>
+              <button id="btn-clear" class="danger" type="button">清除 /clear</button>
+              <button id="btn-goto" type="button">预估移动耗时</button>
+              <button id="btn-exit" type="button">结束 /exit</button>
+            </div>
+            <p id="preview" class="result" aria-live="polite"></p>
+          </section>
+          <section class="card">
+            <h2>最近反馈</h2>
+            <p id="feedback" class="result" role="status" aria-live="assertive">先在地图上点一个测点。</p>
+          </section>
+          <section class="card" style="min-height: 0; display: grid; grid-template-rows: auto 1fr">
+            <h2>指令日志</h2>
+            <div id="log" class="log"></div>
+          </section>
+          <section class="legend">
+            <span><i class="swatch" style="background:#22c55e"></i>机器狗</span>
+            <span><i class="swatch" style="background:#22d3ee"></i>示向度</span>
+            <span><i class="swatch" style="background:#f59e0b"></i>±1° 扇区</span>
+            <span><i class="swatch" style="background:#a78bfa"></i>定向覆盖</span>
+            <span><i class="swatch" style="background:#fb7185"></i>交会定位区</span>
+          </section>
+        </aside>
+      </main>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
