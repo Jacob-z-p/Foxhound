@@ -115,7 +115,7 @@ function updateHud(): void {
       hudRegionEl.hidden = false;
       const ready = region.mec.r <= CLEAR_RADIUS + 1e-9;
       const diameter = region.diameter ? `直径 ${region.diameter.maxDist.toFixed(1)} m` : "直径 —";
-      hudRegionMetaEl.textContent = `${diameter}\n最小覆盖 ${region.mec.r.toFixed(1)} m${ready ? "  · 可清除" : ""}`;
+      hudRegionMetaEl.textContent = `${diameter}\n覆盖圆半径 ${region.mec.r.toFixed(1)} m\n${ready ? "满足 20 m 清除条件" : "继续测向以缩小范围"}`;
     } else {
       hudRegionEl.hidden = true;
     }
@@ -169,9 +169,13 @@ function syncBusy(): void {
 function resize(): void {
   const dpr = window.devicePixelRatio || 1;
   const rect = canvas.getBoundingClientRect();
-  canvas.width = Math.max(1, Math.floor(rect.width * dpr));
-  canvas.height = Math.max(1, Math.floor(rect.height * dpr));
-  camera = fitCamera(canvas);
+  const nextW = Math.max(1, Math.round(rect.width * dpr));
+  const nextH = Math.max(1, Math.round(rect.height * dpr));
+  if (canvas.width !== nextW || canvas.height !== nextH) {
+    canvas.width = nextW;
+    canvas.height = nextH;
+  }
+  if (!lastFrame) camera = fitCamera(canvas);
   draw();
 }
 
@@ -198,7 +202,7 @@ function writeAimInputs(x: number, y: number): void {
 function setAim(x: number, y: number, origin: "map" | "input"): void {
   aim = { x, y };
   if (origin === "map") writeAimInputs(x, y);
-  aimLiveEl.textContent = `(${x.toFixed(1)}, ${y.toFixed(1)})`;
+  aimLiveEl.textContent = "单击地图或输入坐标选点";
 }
 
 function onAimInput(): void {
@@ -206,7 +210,11 @@ function onAimInput(): void {
   const y = parseCoord(aimYEl.value);
   aimXEl.dataset.invalid = x == null ? "true" : "false";
   aimYEl.dataset.invalid = y == null ? "true" : "false";
-  if (x == null || y == null) return;
+  if (x == null || y == null) {
+    aim = null;
+    aimLiveEl.textContent = `请输入有效坐标（绝对值 ≤ ${COORD_ABS_MAX} m）`;
+    return;
+  }
   setAim(x, y, "input");
 }
 
@@ -237,17 +245,15 @@ function updatePreview(): void {
   }
   if (!aim || world.exited) {
     previewEl.textContent = world.exited ? "本局已结束，可新开一局。" : "先在地图上点一个测点。";
-    aimLiveEl.textContent = aim ? `(${aim.x.toFixed(1)}, ${aim.y.toFixed(1)})` : "尚未选定";
     return;
   }
-  aimLiveEl.textContent = `(${aim.x.toFixed(1)}, ${aim.y.toFixed(1)})`;
+  aimLiveEl.textContent = `移动距离 ${hypot(aim.x - world.robotX, aim.y - world.robotY).toFixed(1)} m`;
   const measureCost = previewMeasureCost(world, aim.x, aim.y, opChannel);
   const hit = wouldClearHit(world, aim.x, aim.y, opChannel);
   const clearCost = previewClearCost(world, aim.x, aim.y, hit);
   previewEl.textContent =
-    `测点 (${aim.x.toFixed(1)}, ${aim.y.toFixed(1)})  操作频道 ${opChannel}\n` +
-    `测向预估 ${measureCost.totalS.toFixed(3)} s · 清除预估 ${clearCost.totalS.toFixed(3)} s` +
-    (showTruthEl.checked ? ` · 20 m 内${hit ? "可清除" : "无目标"}` : "");
+    `测向预计  ${measureCost.totalS.toFixed(1)} s\n清除预计  ${showTruthEl.checked ? clearCost.totalS.toFixed(1) + " s" : "随执行结果结算"}` +
+    (showTruthEl.checked ? `\n真值提示：20 m 内${hit ? "有目标" : "无目标"}` : "");
 }
 
 function draw(): void {
@@ -289,6 +295,14 @@ function draw(): void {
   renderJournal();
   updateHud();
   updatePreview();
+  const region = showRegionEl.checked ? localizationForChannel(world, opChannel) : null;
+  (document.querySelector("#view-region") as HTMLButtonElement).disabled = !region?.mec;
+  const rawScale = 100 / camera.scale;
+  const magnitude = 10 ** Math.floor(Math.log10(rawScale));
+  const scaleMeters = [1, 2, 5].map(n => n * magnitude).filter(n => n <= rawScale).pop() ?? magnitude;
+  document.querySelector("#scale-label")!.textContent = `${scaleMeters} m`;
+  (document.querySelector("#scale-bar") as HTMLElement).style.width = `${scaleMeters * camera.scale}px`;
+  document.querySelector("#channel-context")!.textContent = `测向机 CH ${world.dfChannel} · ${world.dfChannel === opChannel ? "当前频道，无需换频" : `测向时切换至 CH ${opChannel}`}\n清除不改变测向机频道`;
   syncBusy();
 }
 
@@ -309,6 +323,11 @@ function syncChannels(): void {
     btn.dataset.state = state;
     btn.dataset.empty = showTruthEl.checked && !live.has(ch) ? "true" : "false";
     btn.setAttribute("aria-pressed", ch === opChannel ? "true" : "false");
+    const label = cleared.has(ch) ? "已清除" : readyChannels.has(ch) ? "可清除" : seen.has(ch) ? "已测" : showTruthEl.checked && !live.has(ch) ? "无源" : "未测";
+    const status = btn.querySelector("small")!;
+    if (status.textContent !== label) status.textContent = label;
+    btn.setAttribute("aria-label", `频道 ${ch}，${label}${ch === opChannel ? "，已选中" : ""}`);
+    btn.title = `CH ${ch} · ${label}`;
   }
 }
 
@@ -500,7 +519,7 @@ function buildChannels(): void {
     btn.type = "button";
     btn.className = "channel";
     btn.dataset.channel = String(ch);
-    btn.textContent = String(ch);
+    btn.innerHTML = `<span>${ch}</span><small>未测</small>`;
     btn.addEventListener("click", () => {
       opChannel = ch;
       draw();
@@ -623,7 +642,7 @@ canvas.addEventListener("wheel", (event) => {
   const px = event.clientX - rect.left;
   const py = event.clientY - rect.top;
   const before = screenToWorld(canvas, camera, px, py);
-  camera.scale = Math.min(1.6, Math.max(0.08, camera.scale * (event.deltaY > 0 ? 0.9 : 1.1)));
+  camera.scale = Math.min(12, Math.max(0.03, camera.scale * (event.deltaY > 0 ? 0.9 : 1.1)));
   const after = screenToWorld(canvas, camera, px, py);
   camera.cx += before.x - after.x;
   camera.cy += before.y - after.y;
@@ -644,7 +663,7 @@ window.addEventListener("keydown", (event) => {
   } else if (event.key === "c" || event.key === "C") {
     event.preventDefault();
     doClear();
-  } else if (event.key === "Enter") {
+  } else if (event.key === "Enter" && event.target === canvas) {
     event.preventDefault();
     doMeasure();
   } else if (/^[1-9]$/.test(event.key)) {
@@ -655,6 +674,17 @@ window.addEventListener("keydown", (event) => {
 });
 
 document.querySelector("#btn-measure")!.addEventListener("click", doMeasure);
+document.querySelector("#view-all")!.addEventListener("click", () => { camera = fitCamera(canvas); });
+document.querySelector("#view-robot")!.addEventListener("click", () => {
+  camera.cx = displayX;
+  camera.cy = displayY;
+});
+document.querySelector("#view-region")!.addEventListener("click", () => {
+  const mec = localizationForChannel(world, opChannel)?.mec;
+  if (!mec || !showRegionEl.checked) return;
+  const rect = canvas.getBoundingClientRect();
+  camera = { cx: mec.x, cy: mec.y, scale: clamp(Math.min(rect.width, rect.height) * 0.28 / Math.max(mec.r, 25), 0.03, 12) };
+});
 document.querySelector("#btn-clear")!.addEventListener("click", doClear);
 document.querySelector("#btn-goto")!.addEventListener("click", doMoveOnly);
 document.querySelector("#btn-exit")!.addEventListener("click", () => {
@@ -678,6 +708,11 @@ problemEl.addEventListener("change", newCase);
 showTruthEl.addEventListener("change", draw);
 showRegionEl.addEventListener("change", draw);
 window.addEventListener("resize", resize);
+window.addEventListener("orientationchange", resize);
+if (typeof ResizeObserver !== "undefined") {
+  new ResizeObserver(() => resize()).observe(canvas);
+}
+void document.fonts.ready.then(() => resize());
 
 buildChannels();
 seedEl.value = "2026";

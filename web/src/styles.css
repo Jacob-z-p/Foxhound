@@ -602,3 +602,97 @@ button:disabled {
     animation: none;
   }
 }
+
+/* Responsive workspace: readable controls grow with the available space. */
+html, body { overflow: hidden; }
+#app { height: 100dvh; }
+.topbar { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 28px; padding: 16px 24px; }
+.brand { min-width: 150px; }
+.brand strong { font-size: 17px; }
+.brand span { margin-top: 4px; font-size: 13px; }
+.controls { gap: 14px; }
+#seed { width: 110px; }
+.kpis { gap: 12px; }
+.kpi { min-width: 105px; padding: 10px 14px; }
+.kpi b { font-size: 16px; }
+.kpi span { font-size: 12px; }
+.workspace { overflow: hidden; grid-template-columns: minmax(0, 1fr) clamp(400px, 27vw, 640px); }
+.side { gap: 18px; padding: 20px; grid-template-rows: auto auto minmax(220px, 1fr) auto; overflow-y: auto; scrollbar-gutter: stable; }
+.card { padding: clamp(18px, 1.1vw, 28px); box-shadow: none; border-color: #263449; border-radius: 16px; }
+.card h2 { font-size: 15px; letter-spacing: .03em; color: #e2e8f0; margin-bottom: 18px; }
+.unit { float: right; color: var(--muted); font-size: 12px; font-weight: 400; text-transform: none; }
+.channels { gap: 10px; }
+.channel { display: grid; gap: 5px; padding: 10px 0; min-height: 60px; }
+.channel span { font-size: 16px; font-weight: 600; }
+.channel small { font: 12px 'Fira Sans', sans-serif; color: #aab8ca; }
+.channel[data-empty="true"] { opacity: .55; }
+.channel[data-state="cleared"] small { color: #bbf7d0; }
+.channel[data-state="ready"] small { color: #bfdbfe; }
+.channel[data-state="seen"] small { color: #fecaca; }
+.channel-context { font-size: 13px; line-height: 1.8; color: var(--muted); margin: 16px 0 0; white-space: pre-line; }
+.aim-fields { margin-bottom: 12px; gap: 16px; }
+.aim-fields .field { font-size: 15px; }
+.aim-fields input { padding: 10px 12px; font-size: 15px; }
+.aim-live { margin: 0; font-size: 14px; }
+#preview { white-space: pre-line; font-size: 14px; line-height: 1.9; margin: 14px 0 18px; padding: 14px 16px; background: var(--panel); border-radius: 10px; }
+.actions { gap: 12px; }
+.actions button { min-height: 48px; font-size: 16px; }
+kbd { font: 12px 'Fira Code', monospace; opacity: .7; margin-left: 8px; }
+.secondary-actions { display: flex; justify-content: space-between; margin-top: 12px; gap: 12px; }
+.secondary-actions button { padding: 8px 0; font-size: 13px; background: transparent; border-color: transparent; color: var(--muted); }
+.secondary-actions button:hover { color: var(--text); }
+#btn-exit:hover { color: var(--rose); }
+.journal-now { margin-top: 0; font-size: 14px; line-height: 1.8; max-height: 110px; overflow: auto; }
+.log-row { border-color: #253247; border-radius: 8px; padding: 12px; grid-template-columns: 90px 1fr; }
+.log-row b { font-size: 14px; }
+.log-row time, .log-row span { font-size: 12px; }
+.legend { font-size: 12px; gap: 10px 14px; padding: 0 4px 4px; }
+.map-hud { top: 24px; left: 24px; width: clamp(260px, 18vw, 360px); max-width: calc(100% - 48px); gap: 12px; }
+.hud-block { padding: 20px 22px; border-radius: 14px; }
+.hud-kicker { font-size: 12px; margin-bottom: 10px; }
+.hud-block strong { font-size: clamp(20px, 1.25vw, 28px); }
+.hud-block p { white-space: pre-line; font-size: 14px; line-height: 1.8; margin-top: 8px; }
+.hud-chips { padding: 12px 16px; gap: 10px; }
+.hud-chips span { font-size: 12px; padding: 5px 10px; }
+.map-tools { position: absolute; right: 24px; top: 24px; z-index: 3; display: flex; gap: 6px; padding: 6px; background: #0f172ae8; border: 1px solid var(--line); border-radius: 12px; }
+.map-tools button { padding: 10px 12px; border: 0; background: transparent; font-size: 14px; }
+.map-tools button:hover:not(:disabled) { background: var(--panel-2); }
+.map-layers { position: absolute; right: 24px; top: 90px; z-index: 3; display: flex; gap: 16px; font-size: 14px; padding: 12px 14px; border-radius: 10px; background: #0f172ae8; }
+.map-scale { position: absolute; right: 24px; bottom: 24px; z-index: 2; display: grid; justify-items: end; gap: 8px; pointer-events: none; color: #cbd5e1; font: 13px 'Fira Code', monospace; }
+.map-scale i { display: block; height: 7px; border: solid #cbd5e1; border-width: 0 1px 2px; }
+.map-scale small { font: 12px 'Fira Sans', sans-serif; color: var(--muted); }
+.hint { font-size: 12px; left: 24px; bottom: 24px; padding: 12px 14px; max-width: calc(100% - 220px); }
+canvas { touch-action: none; }
+@media (max-width: 1400px) {
+  .topbar { grid-template-columns: auto 1fr; gap: 12px 24px; }
+  .kpis { grid-column: 1 / -1; margin: 0; }
+  .kpi { flex: 1; display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+  .controls { justify-content: flex-end; }
+  .map-tools { top: auto; bottom: 90px; }
+  .map-layers { top: auto; bottom: 150px; }
+}
+@media (max-width: 1024px) {
+  html, body { overflow: auto; }
+  #app { height: auto; min-height: 100dvh; }
+  .workspace { overflow: visible; grid-template-columns: 1fr; grid-template-rows: 650px auto; }
+  .side { overflow: visible; scrollbar-gutter: auto; grid-template-columns: 1fr 1fr; grid-template-rows: auto auto auto; }
+  .journal-card { grid-column: 1 / -1; height: 300px; }
+  .legend { grid-column: 1 / -1; }
+}
+@media (max-width: 700px) {
+  .topbar { padding: 16px; grid-template-columns: 1fr; }
+  .controls { justify-content: flex-start; gap: 10px; }
+  .kpis { display: grid; grid-template-columns: 1fr 1fr; }
+  .kpi { min-width: 0; padding: 10px; }
+  .kpi b { font-size: 14px; }
+  .workspace { grid-template-rows: 600px auto; }
+  .side { grid-template-columns: 1fr; padding: 14px; gap: 14px; }
+  .map-tools { top: 14px; bottom: auto; right: 14px; }
+  .map-layers { top: 76px; bottom: auto; right: 14px; }
+  .map-hud { top: 146px; left: 14px; width: 240px; gap: 8px; }
+  .hud-block { padding: 14px 16px; }
+  .hud-block strong { font-size: 20px; }
+  .hud-block p { font-size: 12px; }
+  .hud-chips { display: none; }
+  .hint { bottom: 82px; left: 14px; max-width: calc(100% - 28px); padding: 8px 10px; }
+}

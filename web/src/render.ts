@@ -8,6 +8,13 @@ export type Camera = {
   cy: number;
 };
 
+function canvasBox(canvas: HTMLCanvasElement): { w: number; h: number } {
+  const rect = canvas.getBoundingClientRect();
+  const w = rect.width || canvas.width / (window.devicePixelRatio || 1);
+  const h = rect.height || canvas.height / (window.devicePixelRatio || 1);
+  return { w: Math.max(1, w), h: Math.max(1, h) };
+}
+
 export type Aim = { x: number; y: number } | null;
 
 export type RobotView = {
@@ -25,7 +32,7 @@ export type FxState = {
 };
 
 const COLORS = {
-  grid: "rgba(148, 163, 184, 0.16)",
+  grid: "rgba(148, 163, 184, 0.09)",
   arena: "rgba(34, 211, 238, 0.85)",
   arenaFill: "rgba(34, 211, 238, 0.04)",
   robot: "#22c55e",
@@ -66,12 +73,10 @@ export function screenToWorld(
   px: number,
   py: number,
 ): { x: number; y: number } {
-  const dpr = window.devicePixelRatio || 1;
-  const cx = canvas.width / (2 * dpr);
-  const cy = canvas.height / (2 * dpr);
+  const { w, h } = canvasBox(canvas);
   return {
-    x: camera.cx + (px - cx) / camera.scale,
-    y: camera.cy - (py - cy) / camera.scale,
+    x: camera.cx + (px - w / 2) / camera.scale,
+    y: camera.cy - (py - h / 2) / camera.scale,
   };
 }
 
@@ -81,12 +86,10 @@ export function worldToScreen(
   x: number,
   y: number,
 ): { x: number; y: number } {
-  const dpr = window.devicePixelRatio || 1;
-  const cx = canvas.width / (2 * dpr);
-  const cy = canvas.height / (2 * dpr);
+  const { w, h } = canvasBox(canvas);
   return {
-    x: cx + (x - camera.cx) * camera.scale,
-    y: cy - (y - camera.cy) * camera.scale,
+    x: w / 2 + (x - camera.cx) * camera.scale,
+    y: h / 2 - (y - camera.cy) * camera.scale,
   };
 }
 
@@ -228,9 +231,7 @@ function drawRobotDog(
 }
 
 export function fitCamera(canvas: HTMLCanvasElement): Camera {
-  const dpr = window.devicePixelRatio || 1;
-  const w = canvas.width / dpr;
-  const h = canvas.height / dpr;
+  const { w, h } = canvasBox(canvas);
   const span = ARENA_RADIUS * 2.35;
   return {
     scale: Math.min(w, h) / span,
@@ -255,11 +256,11 @@ export function renderMap(options: {
   const { canvas, world, camera, aim, hover, opChannel, showTruth, showRegion, robot, fx, readyChannels } = options;
   const ctx = canvas.getContext("2d");
   if (!ctx) return;
-  const dpr = window.devicePixelRatio || 1;
-  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  const width = canvas.width / dpr;
-  const height = canvas.height / dpr;
-  ctx.clearRect(0, 0, width, height);
+  const view = canvasBox(canvas);
+  const sx = canvas.width / view.w;
+  const sy = canvas.height / view.h;
+  ctx.setTransform(sx, 0, 0, sy, 0, 0);
+  ctx.clearRect(0, 0, view.w, view.h);
 
   ctx.strokeStyle = COLORS.grid;
   ctx.lineWidth = 1;
@@ -299,6 +300,8 @@ export function renderMap(options: {
   ctx.fillText("N +y", origin.x + 6, origin.y - 76);
 
   if (showTruth) {
+    const labels: { x: number; y: number; w: number; h: number }[] = [];
+    const sourcePoints = world.sources.map(source => worldToScreen(canvas, camera, source.x, source.y));
     for (const source of world.sources) {
       const p = worldToScreen(canvas, camera, source.x, source.y);
       const selected = source.channel === opChannel;
@@ -331,7 +334,18 @@ export function renderMap(options: {
       }
       ctx.fillStyle = selected ? COLORS.text : COLORS.muted;
       ctx.font = selected ? "12px Fira Code" : "11px Fira Code";
-      ctx.fillText(`C${source.channel}`, p.x + 8, p.y - 6);
+      const text = `C${source.channel}`;
+      const w = ctx.measureText(text).width + 6;
+      const candidates = [[10, -18], [10, 8], [-w - 10, -18], [-w - 10, 8], [10, -34], [10, 24]];
+      const offset = candidates.find(([dx, dy]) => {
+        const box = { x: p.x + dx, y: p.y + dy, w, h: 15 };
+        return box.x >= 0 && box.y >= 0 && box.x + w <= view.w && box.y + 15 <= view.h &&
+          !labels.some(b => box.x < b.x + b.w && box.x + w > b.x && box.y < b.y + b.h && box.y + 15 > b.y) &&
+          !sourcePoints.some(q => q.x > box.x - 5 && q.x < box.x + w + 5 && q.y > box.y - 5 && q.y < box.y + 20);
+      }) ?? candidates[0];
+      const box = { x: p.x + offset[0], y: p.y + offset[1], w, h: 15 };
+      labels.push(box);
+      ctx.fillText(text, box.x + 3, box.y + 12);
     }
   }
 
@@ -504,7 +518,7 @@ export function renderMap(options: {
 
   if (fx.outroT > 0) {
     ctx.fillStyle = `rgba(2, 6, 23, ${0.18 * fx.outroT})`;
-    ctx.fillRect(0, 0, width, height);
+    ctx.fillRect(0, 0, view.w, view.h);
   }
 }
 

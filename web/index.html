@@ -23,8 +23,6 @@
             <input id="seed" type="number" inputmode="numeric" min="1" step="1" />
           </label>
           <button id="new-case" type="button">新开一局</button>
-          <label class="toggle"><input id="show-truth" type="checkbox" checked /> 显示真值</label>
-          <label class="toggle"><input id="show-region" type="checkbox" checked /> 显示交会区</label>
         </div>
         <div class="kpis">
           <div class="kpi"><b id="kpi-time">0.000 s</b><span>虚拟时间</span></div>
@@ -35,6 +33,16 @@
       </header>
       <main class="workspace">
         <section class="map-wrap" aria-label="目标区域地图">
+          <div class="map-tools" aria-label="地图视角">
+            <button id="view-all" type="button">全图</button>
+            <button id="view-robot" type="button">机器狗</button>
+            <button id="view-region" type="button">放大交会区</button>
+          </div>
+          <div class="map-layers">
+            <label class="toggle"><input id="show-truth" type="checkbox" checked /> 显示真值</label>
+            <label class="toggle"><input id="show-region" type="checkbox" checked /> 交会区</label>
+          </div>
+          <div class="map-scale"><span id="scale-label"></span><i id="scale-bar"></i><small>搜索边界 R = 1800 m</small></div>
           <canvas id="map" tabindex="0"></canvas>
           <aside class="map-hud" aria-label="地图读数">
             <div class="hud-block">
@@ -67,9 +75,10 @@
           <section class="card">
             <h2>操作频道 <span id="op-channel">1</span></h2>
             <div id="channels" class="channels" role="group" aria-label="频道 1 到 20"></div>
+            <p id="channel-context" class="channel-context"></p>
           </section>
           <section class="card">
-            <h2>操作</h2>
+            <h2>下一测点 <span class="unit">坐标单位 m</span></h2>
             <div class="aim-fields">
               <label class="field">x
                 <input id="aim-x" type="text" inputmode="decimal" autocomplete="off" spellcheck="false" />
@@ -78,14 +87,13 @@
                 <input id="aim-y" type="text" inputmode="decimal" autocomplete="off" spellcheck="false" />
               </label>
             </div>
-            <p id="aim-live" class="aim-live" aria-live="polite">(400.0, 0.0)</p>
-            <div class="actions">
-              <button id="btn-measure" class="primary" type="button">测向 /measure</button>
-              <button id="btn-clear" class="danger" type="button">清除 /clear</button>
-              <button id="btn-goto" type="button">预估移动耗时</button>
-              <button id="btn-exit" type="button">结束 /exit</button>
-            </div>
+            <p id="aim-live" class="aim-live" aria-live="polite">单击地图或输入坐标</p>
             <p id="preview" class="result" aria-live="polite"></p>
+            <div class="actions">
+              <button id="btn-measure" class="primary" type="button">测向 <kbd>M</kbd></button>
+              <button id="btn-clear" type="button">清除 <kbd>C</kbd></button>
+            </div>
+            <div class="secondary-actions"><button id="btn-goto" type="button">移动耗时说明</button><button id="btn-exit" type="button">结束本局</button></div>
           </section>
           <section class="card journal-card">
             <h2>记录</h2>
