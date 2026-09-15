@@ -28,7 +28,7 @@
         </div>
         <div class="kpis">
           <div class="kpi"><b id="kpi-time">0.000 s</b><span>虚拟时间</span></div>
-          <div class="kpi"><b id="kpi-clear">0 / 0</b><span>已清除</span></div>
+          <div class="kpi"><b id="kpi-clear">0</b><span id="kpi-clear-label">已清除</span></div>
           <div class="kpi"><b id="kpi-avg">—</b><span>平均清除时间</span></div>
           <div class="kpi"><b id="kpi-df">CH 1</b><span>测向机频道</span></div>
         </div>
@@ -36,8 +36,31 @@
       <main class="workspace">
         <section class="map-wrap" aria-label="目标区域地图">
           <canvas id="map" tabindex="0"></canvas>
-          <div class="hint">
-            单击地图选定测点 · 滚轮缩放 · 拖动画布平移 · M 测向 · C 清除 · 双击频道瞄准真值（演练）
+          <aside class="map-hud" aria-label="地图读数">
+            <div class="hud-block">
+              <span class="hud-kicker">下一测点</span>
+              <strong id="hud-aim">400.0, 0.0</strong>
+              <p id="hud-aim-meta">距离 — · 方位 —</p>
+            </div>
+            <div class="hud-block" id="hud-region" hidden>
+              <span class="hud-kicker">交会 CH <span id="hud-region-ch">1</span></span>
+              <p id="hud-region-meta"></p>
+            </div>
+            <div class="hud-chips">
+              <span>接收 1000 m</span>
+              <span>清除 20 m</span>
+            </div>
+          </aside>
+          <div id="cinematic" class="cinematic" data-mode="intro" aria-hidden="true">
+            <div class="cinematic-rings" aria-hidden="true"></div>
+            <div class="cinematic-inner">
+              <p id="cinematic-kicker" class="cinematic-kicker">FOXHOUND</p>
+              <h1 id="cinematic-title" class="cinematic-title">进入目标区域</h1>
+              <p id="cinematic-sub" class="cinematic-sub">单击任意处跳过</p>
+            </div>
+          </div>
+          <div class="hint" id="map-hint">
+            单击地图或输入坐标 · 滚轮缩放 · 拖动平移 · M 测向 · C 清除
           </div>
         </section>
         <aside class="side">
@@ -46,7 +69,16 @@
             <div id="channels" class="channels" role="group" aria-label="频道 1 到 20"></div>
           </section>
           <section class="card">
-            <h2>动作</h2>
+            <h2>操作</h2>
+            <div class="aim-fields">
+              <label class="field">x
+                <input id="aim-x" type="text" inputmode="decimal" autocomplete="off" spellcheck="false" />
+              </label>
+              <label class="field">y
+                <input id="aim-y" type="text" inputmode="decimal" autocomplete="off" spellcheck="false" />
+              </label>
+            </div>
+            <p id="aim-live" class="aim-live" aria-live="polite">(400.0, 0.0)</p>
             <div class="actions">
               <button id="btn-measure" class="primary" type="button">测向 /measure</button>
               <button id="btn-clear" class="danger" type="button">清除 /clear</button>
@@ -55,20 +87,19 @@
             </div>
             <p id="preview" class="result" aria-live="polite"></p>
           </section>
-          <section class="card">
-            <h2>最近反馈</h2>
-            <p id="feedback" class="result" role="status" aria-live="assertive">先在地图上点一个测点。</p>
-          </section>
-          <section class="card" style="min-height: 0; display: grid; grid-template-rows: auto 1fr">
-            <h2>指令日志</h2>
+          <section class="card journal-card">
+            <h2>记录</h2>
+            <p id="feedback" class="result journal-now" role="status" aria-live="assertive">先在地图上点一个测点。</p>
             <div id="log" class="log"></div>
           </section>
           <section class="legend">
             <span><i class="swatch" style="background:#22c55e"></i>机器狗</span>
-            <span><i class="swatch" style="background:#22d3ee"></i>示向度</span>
-            <span><i class="swatch" style="background:#f59e0b"></i>±1° 扇区</span>
-            <span><i class="swatch" style="background:#a78bfa"></i>定向覆盖</span>
-            <span><i class="swatch" style="background:#fb7185"></i>交会定位区</span>
+            <span><i class="swatch" style="background:#22d3ee"></i>接收半径</span>
+            <span><i class="swatch" style="background:#4ade80"></i>清除半径</span>
+            <span><i class="swatch" style="background:#f8fafc"></i>最小覆盖圆</span>
+            <span><i class="swatch" style="background:#ef4444"></i>已测未清</span>
+            <span><i class="swatch" style="background:#3b82f6"></i>MEC≤20 m</span>
+            <span><i class="swatch" style="background:#fb7185"></i>交会区</span>
           </section>
         </aside>
       </main>

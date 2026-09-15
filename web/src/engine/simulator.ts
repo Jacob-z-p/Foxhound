@@ -52,6 +52,13 @@ export function createWorld(config: CaseConfig): World {
     observations: [],
     path: [{ x: 0, y: 0 }],
     log: [`进入目标区域  seed=${config.seed}  问题${config.problem}`],
+    journal: [
+      {
+        t: 0,
+        kind: "enter",
+        note: `seed ${config.seed} · 问题 ${config.problem}`,
+      },
+    ],
   };
 }
 
@@ -158,6 +165,15 @@ export function measure(world: World, x: number, y: number, channel: number): {
       svdDeg == null ? "" : `  ${svdDeg.toFixed(2)}°`
     }`,
   );
+  world.journal.push({
+    t: world.virtualTime,
+    kind: "measure",
+    result,
+    channel,
+    x,
+    y,
+    note: svdDeg == null ? undefined : `${svdDeg.toFixed(2)}°`,
+  });
   return { result, svdDeg, cost, source };
 }
 
@@ -192,12 +208,25 @@ export function clearTarget(world: World, x: number, y: number, channel: number)
   world.log.push(
     `t=${world.virtualTime.toFixed(3)}s  /clear  (${x.toFixed(1)}, ${y.toFixed(1)})  ch${channel}  ${result}  （测向机仍为频道 ${world.dfChannel}）`,
   );
+  world.journal.push({
+    t: world.virtualTime,
+    kind: "clear",
+    result,
+    channel,
+    x,
+    y,
+    note: `测向机 CH ${world.dfChannel}`,
+  });
   return { result, cost, source };
 }
 
 export function exitWorld(world: World): void {
   world.exited = true;
   world.log.push(`t=${world.virtualTime.toFixed(3)}s  /exit`);
+  world.journal.push({
+    t: world.virtualTime,
+    kind: "exit",
+  });
 }
 
 export function clearedCount(world: World): number {

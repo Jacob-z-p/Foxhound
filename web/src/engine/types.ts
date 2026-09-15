@@ -49,6 +49,18 @@ export type CaseConfig = {
   problem: ProblemKind;
 };
 
+export type JournalKind = "enter" | "measure" | "clear" | "exit";
+
+export type JournalEntry = {
+  t: number;
+  kind: JournalKind;
+  result?: string;
+  channel?: number;
+  x?: number;
+  y?: number;
+  note?: string;
+};
+
 export type World = {
   seed: number;
   problem: ProblemKind;
@@ -62,4 +74,5 @@ export type World = {
   observations: Observation[];
   path: Array<{ x: number; y: number }>;
   log: string[];
+  journal: JournalEntry[];
 };

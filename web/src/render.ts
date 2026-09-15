@@ -1,6 +1,6 @@
 import { ARENA_RADIUS, CLEAR_RADIUS, NEAR_RADIUS, RECEIVE_MAX, RECEIVE_MIN } from "./engine/types";
 import type { Observation, Source, World } from "./engine/types";
-import { azimuthDeg, degToRad, hypot, localizationRegion } from "./engine/geometry";
+import { clamp, degToRad, hypot, localizationRegion, TAU } from "./engine/geometry";
 
 export type Camera = {
   scale: number;
@@ -9,6 +9,20 @@ export type Camera = {
 };
 
 export type Aim = { x: number; y: number } | null;
+
+export type RobotView = {
+  x: number;
+  y: number;
+  headingDeg: number;
+  gait: number;
+  walking: boolean;
+};
+
+export type FxState = {
+  time: number;
+  introT: number;
+  outroT: number;
+};
 
 const COLORS = {
   grid: "rgba(148, 163, 184, 0.16)",
@@ -25,8 +39,12 @@ const COLORS = {
   sector: "rgba(245, 158, 11, 0.18)",
   sectorStroke: "rgba(245, 158, 11, 0.9)",
   ray: "#22d3ee",
-  region: "rgba(251, 113, 133, 0.28)",
+  region: "rgba(251, 113, 133, 0.22)",
   regionStroke: "#fb7185",
+  mec: "rgba(250, 250, 250, 0.92)",
+  ready: "#3b82f6",
+  receive: "rgba(34, 211, 238, 0.9)",
+  clear: "rgba(34, 197, 94, 0.95)",
   text: "#e2e8f0",
   muted: "#94a3b8",
 };
@@ -82,7 +100,7 @@ function drawCircle(
 ) {
   const p = worldToScreen(canvas, camera, x, y);
   ctx.beginPath();
-  ctx.arc(p.x, p.y, r * camera.scale, 0, Math.PI * 2);
+  ctx.arc(p.x, p.y, Math.max(0.5, r * camera.scale), 0, Math.PI * 2);
 }
 
 function drawFan(
@@ -118,6 +136,97 @@ function drawSector(
   ctx.closePath();
 }
 
+function roundRectPath(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  r: number,
+) {
+  const radius = Math.min(r, w / 2, h / 2);
+  if (typeof ctx.roundRect === "function") {
+    ctx.beginPath();
+    ctx.roundRect(x, y, w, h, radius);
+    return;
+  }
+  ctx.beginPath();
+  ctx.moveTo(x + radius, y);
+  ctx.lineTo(x + w - radius, y);
+  ctx.quadraticCurveTo(x + w, y, x + w, y + radius);
+  ctx.lineTo(x + w, y + h - radius);
+  ctx.quadraticCurveTo(x + w, y + h, x + w - radius, y + h);
+  ctx.lineTo(x + radius, y + h);
+  ctx.quadraticCurveTo(x, y + h, x, y + h - radius);
+  ctx.lineTo(x, y + radius);
+  ctx.quadraticCurveTo(x, y, x + radius, y);
+  ctx.closePath();
+}
+
+function drawRobotDog(
+  ctx: CanvasRenderingContext2D,
+  sx: number,
+  sy: number,
+  headingDeg: number,
+  gait: number,
+  walking: boolean,
+  size: number,
+) {
+  ctx.save();
+  ctx.translate(sx, sy);
+  ctx.rotate(-degToRad(headingDeg));
+  const s = size;
+
+  ctx.fillStyle = "rgba(2, 6, 23, 0.4)";
+  ctx.beginPath();
+  ctx.ellipse(0, s * 0.08, s * 0.36, s * 0.14, 0, 0, TAU);
+  ctx.fill();
+
+  const hips = [
+    { x: s * 0.24, y: -s * 0.2, phase: 0 },
+    { x: s * 0.24, y: s * 0.2, phase: Math.PI },
+    { x: -s * 0.26, y: -s * 0.2, phase: Math.PI },
+    { x: -s * 0.26, y: s * 0.2, phase: 0 },
+  ];
+  for (const hip of hips) {
+    const cycle = walking ? gait * TAU : 0;
+    const stride = walking ? Math.sin(cycle + hip.phase) * s * 0.11 : 0;
+    const planted = walking ? 0.62 + 0.38 * Math.max(0, -Math.cos(cycle + hip.phase)) : 1;
+    const fx = hip.x + stride;
+    const fy = hip.y;
+    ctx.strokeStyle = "#14532d";
+    ctx.lineWidth = Math.max(1.8, s * 0.055);
+    ctx.lineCap = "round";
+    ctx.beginPath();
+    ctx.moveTo(hip.x * 0.42, hip.y * 0.28);
+    ctx.lineTo(fx, fy);
+    ctx.stroke();
+    ctx.fillStyle = planted > 0.78 ? "#166534" : "#86efac";
+    ctx.beginPath();
+    ctx.ellipse(fx, fy, s * 0.08 * (0.75 + 0.25 * planted), s * 0.055, 0, 0, TAU);
+    ctx.fill();
+  }
+
+  ctx.fillStyle = "#15803d";
+  roundRectPath(ctx, -s * 0.4, -s * 0.16, s * 0.62, s * 0.32, s * 0.08);
+  ctx.fill();
+  ctx.fillStyle = COLORS.robot;
+  roundRectPath(ctx, -s * 0.36, -s * 0.12, s * 0.54, s * 0.24, s * 0.07);
+  ctx.fill();
+
+  ctx.fillStyle = "#4ade80";
+  roundRectPath(ctx, s * 0.12, -s * 0.13, s * 0.3, s * 0.26, s * 0.07);
+  ctx.fill();
+  ctx.fillStyle = "#022c22";
+  roundRectPath(ctx, s * 0.22, -s * 0.07, s * 0.16, s * 0.14, 3);
+  ctx.fill();
+  ctx.fillStyle = walking ? "#67e8f9" : "#22d3ee";
+  ctx.beginPath();
+  ctx.arc(s * 0.32, 0, Math.max(1.6, s * 0.035), 0, TAU);
+  ctx.fill();
+  ctx.restore();
+}
+
 export function fitCamera(canvas: HTMLCanvasElement): Camera {
   const dpr = window.devicePixelRatio || 1;
   const w = canvas.width / dpr;
@@ -139,8 +248,11 @@ export function renderMap(options: {
   opChannel: number;
   showTruth: boolean;
   showRegion: boolean;
+  robot: RobotView;
+  fx: FxState;
+  readyChannels: Set<number>;
 }): void {
-  const { canvas, world, camera, aim, hover, opChannel, showTruth, showRegion } = options;
+  const { canvas, world, camera, aim, hover, opChannel, showTruth, showRegion, robot, fx, readyChannels } = options;
   const ctx = canvas.getContext("2d");
   if (!ctx) return;
   const dpr = window.devicePixelRatio || 1;
@@ -162,6 +274,16 @@ export function renderMap(options: {
   ctx.strokeStyle = COLORS.arena;
   ctx.lineWidth = 2;
   ctx.stroke();
+
+  if (fx.introT > 0 && fx.introT < 1) {
+    for (let i = 0; i < 4; i += 1) {
+      const t = (fx.introT + i * 0.18) % 1;
+      ctx.strokeStyle = `rgba(34, 211, 238, ${0.55 * (1 - t)})`;
+      ctx.lineWidth = 2;
+      drawCircle(ctx, canvas, camera, 0, 0, 80 + t * ARENA_RADIUS);
+      ctx.stroke();
+    }
+  }
 
   const origin = worldToScreen(canvas, camera, 0, 0);
   ctx.strokeStyle = "rgba(248, 250, 252, 0.35)";
@@ -196,7 +318,11 @@ export function renderMap(options: {
       }
       ctx.beginPath();
       ctx.arc(p.x, p.y, selected ? 7 : source.cleared ? 4 : 5, 0, Math.PI * 2);
-      ctx.fillStyle = source.cleared ? COLORS.cleared : COLORS.source;
+      ctx.fillStyle = source.cleared
+        ? COLORS.cleared
+        : readyChannels.has(source.channel)
+          ? COLORS.ready
+          : COLORS.source;
       ctx.fill();
       if (selected) {
         ctx.strokeStyle = "#f8fafc";
@@ -254,18 +380,43 @@ export function renderMap(options: {
         if (region.diameter) {
           const a = worldToScreen(canvas, camera, region.diameter.a.x, region.diameter.a.y);
           const b = worldToScreen(canvas, camera, region.diameter.b.x, region.diameter.b.y);
-          ctx.setLineDash([6, 4]);
+          ctx.setLineDash([5, 5]);
+          ctx.strokeStyle = "rgba(251, 113, 133, 0.28)";
+          ctx.lineWidth = 1;
           ctx.beginPath();
           ctx.moveTo(a.x, a.y);
           ctx.lineTo(b.x, b.y);
           ctx.stroke();
           ctx.setLineDash([]);
         }
+        if (region.mec && region.mec.r > 1) {
+          const mec = region.mec;
+          const ready = mec.r <= CLEAR_RADIUS + 1e-9;
+          const mecColor = ready ? COLORS.ready : COLORS.mec;
+          ctx.setLineDash([7, 5]);
+          ctx.strokeStyle = mecColor;
+          ctx.lineWidth = 2;
+          drawCircle(ctx, canvas, camera, mec.x, mec.y, mec.r);
+          ctx.stroke();
+          ctx.setLineDash([]);
+          ctx.fillStyle = ready ? "rgba(59, 130, 246, 0.12)" : "rgba(248, 250, 252, 0.08)";
+          drawCircle(ctx, canvas, camera, mec.x, mec.y, mec.r);
+          ctx.fill();
+          const c = worldToScreen(canvas, camera, mec.x, mec.y);
+          ctx.strokeStyle = mecColor;
+          ctx.lineWidth = 1.5;
+          ctx.beginPath();
+          ctx.moveTo(c.x - 6, c.y);
+          ctx.lineTo(c.x + 6, c.y);
+          ctx.moveTo(c.x, c.y - 6);
+          ctx.lineTo(c.x, c.y + 6);
+          ctx.stroke();
+        }
       }
     }
   }
 
-  if (world.path.length > 1) {
+  if (world.path.length > 0) {
     ctx.strokeStyle = COLORS.path;
     ctx.lineWidth = 2;
     ctx.beginPath();
@@ -274,51 +425,86 @@ export function renderMap(options: {
       if (i === 0) ctx.moveTo(p.x, p.y);
       else ctx.lineTo(p.x, p.y);
     });
+    const last = world.path[world.path.length - 1];
+    if (hypot(robot.x - last.x, robot.y - last.y) > 0.4) {
+      const p = worldToScreen(canvas, camera, robot.x, robot.y);
+      ctx.lineTo(p.x, p.y);
+    }
     ctx.stroke();
   }
 
-  const robot = worldToScreen(canvas, camera, world.robotX, world.robotY);
-  drawCircle(ctx, canvas, camera, world.robotX, world.robotY, CLEAR_RADIUS);
-  ctx.strokeStyle = "rgba(34,197,94,0.45)";
-  ctx.stroke();
-  drawCircle(ctx, canvas, camera, world.robotX, world.robotY, NEAR_RADIUS);
-  ctx.strokeStyle = "rgba(245,158,11,0.7)";
-  ctx.stroke();
-  ctx.beginPath();
-  ctx.arc(robot.x, robot.y, 7, 0, Math.PI * 2);
-  ctx.fillStyle = COLORS.robot;
+  ctx.fillStyle = "rgba(34, 211, 238, 0.06)";
+  drawCircle(ctx, canvas, camera, robot.x, robot.y, RECEIVE_MIN);
   ctx.fill();
+  ctx.setLineDash([10, 8]);
+  ctx.lineDashOffset = -fx.time * 0.04;
+  ctx.strokeStyle = COLORS.receive;
+  ctx.lineWidth = 2;
+  drawCircle(ctx, canvas, camera, robot.x, robot.y, RECEIVE_MIN);
+  ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.lineDashOffset = 0;
+
+  drawCircle(ctx, canvas, camera, robot.x, robot.y, NEAR_RADIUS);
+  ctx.strokeStyle = "rgba(245,158,11,0.7)";
+  ctx.lineWidth = 1;
+  ctx.stroke();
 
   const mark = aim ?? hover;
+  if (aim) {
+    ctx.fillStyle = "rgba(34, 197, 94, 0.16)";
+    drawCircle(ctx, canvas, camera, aim.x, aim.y, CLEAR_RADIUS);
+    ctx.fill();
+    ctx.strokeStyle = COLORS.clear;
+    ctx.lineWidth = 2;
+    drawCircle(ctx, canvas, camera, aim.x, aim.y, CLEAR_RADIUS);
+    ctx.stroke();
+    const px = CLEAR_RADIUS * camera.scale;
+    if (px < 10) {
+      const p = worldToScreen(canvas, camera, aim.x, aim.y);
+      ctx.setLineDash([4, 3]);
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, 14, 0, TAU);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+  } else if (hover) {
+    ctx.strokeStyle = "rgba(34, 197, 94, 0.45)";
+    ctx.setLineDash([4, 3]);
+    drawCircle(ctx, canvas, camera, hover.x, hover.y, CLEAR_RADIUS);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  const robotScreen = worldToScreen(canvas, camera, robot.x, robot.y);
   if (mark) {
     const p = worldToScreen(canvas, camera, mark.x, mark.y);
     ctx.setLineDash([5, 4]);
     ctx.strokeStyle = COLORS.aim;
     ctx.beginPath();
-    ctx.moveTo(robot.x, robot.y);
+    ctx.moveTo(robotScreen.x, robotScreen.y);
     ctx.lineTo(p.x, p.y);
     ctx.stroke();
     ctx.setLineDash([]);
     ctx.beginPath();
-    ctx.arc(p.x, p.y, 5, 0, Math.PI * 2);
+    ctx.arc(p.x, p.y, 4, 0, Math.PI * 2);
     ctx.stroke();
-    const az = azimuthDeg(world.robotX, world.robotY, mark.x, mark.y);
-    const dist = hypot(mark.x - world.robotX, mark.y - world.robotY);
-    ctx.fillStyle = COLORS.text;
-    ctx.font = "12px Fira Code";
-    ctx.fillText(
-      `(${mark.x.toFixed(1)}, ${mark.y.toFixed(1)})  ${dist.toFixed(1)} m  ${az.toFixed(1)}°`,
-      p.x + 10,
-      p.y - 10,
-    );
   }
 
-  for (const obs of world.observations) {
+  const dogPx = clamp(camera.scale * 120, 18, 30);
+  drawRobotDog(ctx, robotScreen.x, robotScreen.y, robot.headingDeg, robot.gait, robot.walking, dogPx);
+
+  for (const obs of channelObs) {
     const p = worldToScreen(canvas, camera, obs.x, obs.y);
     ctx.beginPath();
-    ctx.arc(p.x, p.y, 3, 0, Math.PI * 2);
-    ctx.fillStyle = obs.channel === opChannel ? COLORS.ray : "rgba(148,163,184,0.7)";
+    ctx.arc(p.x, p.y, 3.5, 0, Math.PI * 2);
+    ctx.fillStyle = COLORS.ray;
     ctx.fill();
+  }
+
+  if (fx.outroT > 0) {
+    ctx.fillStyle = `rgba(2, 6, 23, ${0.18 * fx.outroT})`;
+    ctx.fillRect(0, 0, width, height);
   }
 }
 

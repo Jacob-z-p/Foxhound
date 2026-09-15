@@ -14,6 +14,7 @@
   --rose: #fb7185;
   --violet: #a78bfa;
   --danger: #ef4444;
+  --ready: #3b82f6;
   --shadow: 0 12px 40px rgba(2, 6, 23, 0.55);
   color-scheme: dark;
 }
@@ -38,6 +39,7 @@ select {
 }
 
 #app {
+  position: relative;
   height: 100%;
   display: grid;
   grid-template-rows: auto 1fr;
@@ -86,6 +88,7 @@ select {
 }
 
 .field input[type="number"],
+.field input[type="text"],
 .field select {
   background: var(--panel-2);
   color: var(--text);
@@ -148,12 +151,15 @@ canvas {
   width: 100%;
   height: 100%;
   cursor: crosshair;
+  position: relative;
+  z-index: 1;
 }
 
 .hint {
   position: absolute;
   left: 16px;
   bottom: 16px;
+  z-index: 2;
   color: var(--muted);
   font-size: 12px;
   background: rgba(15, 23, 42, 0.82);
@@ -164,9 +170,67 @@ canvas {
   max-width: min(520px, calc(100% - 32px));
 }
 
+.map-hud {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  z-index: 2;
+  display: grid;
+  gap: 8px;
+  pointer-events: none;
+  max-width: min(280px, calc(100% - 32px));
+}
+
+.hud-block,
+.hud-chips {
+  background: rgba(15, 23, 42, 0.88);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 10px 12px;
+  box-shadow: var(--shadow);
+}
+
+.hud-kicker {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.hud-block strong {
+  display: block;
+  font-family: "Fira Code", monospace;
+  font-size: 15px;
+}
+
+.hud-block p {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-family: "Fira Code", monospace;
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.hud-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 8px 10px;
+}
+
+.hud-chips span {
+  font-size: 11px;
+  color: var(--muted);
+  background: var(--panel-2);
+  border-radius: 999px;
+  padding: 3px 8px;
+}
+
 .side {
   display: grid;
-  grid-template-rows: auto auto auto 1fr auto;
+  grid-template-rows: auto auto minmax(180px, 1fr) auto;
   gap: 12px;
   padding: 12px;
   border-left: 1px solid var(--line);
@@ -261,17 +325,153 @@ button:disabled {
   color: #bbf7d0;
 }
 
+.channel[data-state="seen"] {
+  background: #7f1d1d;
+  border-color: var(--danger);
+  color: #fecaca;
+}
+
+.channel[data-state="ready"] {
+  background: #1e3a8a;
+  border-color: var(--ready);
+  color: #bfdbfe;
+}
+
+.aim-fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.aim-fields input {
+  width: 100%;
+  min-width: 0;
+  font-family: "Fira Code", monospace;
+}
+
+.aim-fields input[data-invalid="true"] {
+  border-color: var(--danger);
+}
+
+.aim-live {
+  margin: 0 0 10px;
+  font-family: "Fira Code", monospace;
+  font-size: 12px;
+  color: var(--cyan);
+}
+
+.channel[aria-pressed="true"] {
+  box-shadow: 0 0 0 2px var(--cyan);
+}
+
 .channel[data-empty="true"] {
   opacity: 0.35;
 }
 
+.cinematic {
+  position: absolute;
+  inset: 0;
+  z-index: 40;
+  display: grid;
+  place-items: center;
+  background:
+    radial-gradient(circle at 50% 46%, rgba(34, 211, 238, 0.22), transparent 42%),
+    rgba(2, 6, 23, 0.78);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 480ms ease;
+}
+
+.cinematic.is-on {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.cinematic[data-mode="outro"] {
+  background:
+    radial-gradient(circle at 50% 46%, rgba(34, 197, 94, 0.26), transparent 44%),
+    rgba(2, 6, 23, 0.82);
+}
+
+.cinematic-rings {
+  position: absolute;
+  width: min(52vmin, 440px);
+  height: min(52vmin, 440px);
+  border-radius: 50%;
+  border: 1px solid rgba(34, 211, 238, 0.38);
+  box-shadow: 0 0 0 18px rgba(34, 211, 238, 0.08);
+  animation: radar-ping 2.2s ease-out infinite;
+}
+
+.cinematic[data-mode="outro"] .cinematic-rings {
+  border-color: rgba(34, 197, 94, 0.45);
+  box-shadow: 0 0 0 18px rgba(34, 197, 94, 0.1);
+}
+
+.cinematic-inner {
+  position: relative;
+  text-align: center;
+  padding: 28px 32px;
+  max-width: min(520px, calc(100% - 48px));
+  background: rgba(15, 23, 42, 0.88);
+  border: 1px solid rgba(51, 65, 85, 0.95);
+  border-radius: 18px;
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(10px);
+}
+
+.cinematic-kicker {
+  margin: 0 0 8px;
+  letter-spacing: 0.38em;
+  font-size: 11px;
+  color: var(--cyan);
+}
+
+.cinematic[data-mode="outro"] .cinematic-kicker {
+  color: var(--cta);
+}
+
+.cinematic-title {
+  margin: 0 0 12px;
+  font-size: clamp(28px, 4.4vw, 48px);
+  letter-spacing: 0.04em;
+}
+
+.cinematic-sub {
+  margin: 0;
+  color: #e2e8f0;
+  font-family: "Fira Code", monospace;
+  font-size: 14px;
+  line-height: 1.7;
+  white-space: pre-wrap;
+}
+
+@keyframes radar-ping {
+  0% {
+    transform: scale(0.72);
+    opacity: 0.9;
+  }
+  100% {
+    transform: scale(1.18);
+    opacity: 0;
+  }
+}
+
 .result {
-  min-height: 74px;
+  min-height: 0;
+  margin: 10px 0 0;
   font-family: "Fira Code", monospace;
   font-size: 12px;
   line-height: 1.55;
   color: #e2e8f0;
   white-space: pre-wrap;
+}
+
+.journal-now {
+  margin: 0 0 10px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--line);
 }
 
 .result[data-kind="direction"] {
@@ -291,15 +491,55 @@ button:disabled {
   color: var(--rose);
 }
 
+.journal-card {
+  min-height: 0;
+  display: grid;
+  grid-template-rows: auto auto 1fr;
+}
+
 .log {
   overflow: auto;
   min-height: 0;
+  display: grid;
+  align-content: start;
+  gap: 6px;
+}
+
+.log-row {
+  display: grid;
+  grid-template-columns: 72px 1fr;
+  gap: 2px 10px;
+  padding: 8px 9px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #0b1220;
+}
+
+.log-row time {
   font-family: "Fira Code", monospace;
   font-size: 11px;
-  line-height: 1.5;
   color: var(--muted);
-  white-space: pre-wrap;
 }
+
+.log-row b {
+  font-family: "Fira Code", monospace;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.log-row span {
+  grid-column: 1 / -1;
+  font-family: "Fira Code", monospace;
+  font-size: 11px;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.log-row[data-tone="direction"] b { color: var(--cyan); }
+.log-row[data-tone="near"] b { color: var(--amber); }
+.log-row[data-tone="success"] b { color: var(--cta); }
+.log-row[data-tone="no_signal"] b,
+.log-row[data-tone="no_target_in_range"] b { color: var(--rose); }
 
 .legend {
   display: flex;
@@ -353,7 +593,12 @@ button:disabled {
 
 @media (prefers-reduced-motion: reduce) {
   button,
-  .channel {
+  .channel,
+  .cinematic {
     transition: none;
+  }
+
+  .cinematic-rings {
+    animation: none;
   }
 }
